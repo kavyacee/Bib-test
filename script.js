@@ -13,6 +13,7 @@ async function fetchAllBibliography() {
   while (moreData) {
     const response = await fetch(`${serverURL}?userID=${userID}&apiKey=${apiKey}&collectionKey=${collectionKey}&limit=${pageSize}&start=${start}`);
     const data = await response.json();
+    console.log('Fetched data:', data);  // Add this line
     allItems = allItems.concat(data);
 
     if (data.length < pageSize) {
@@ -21,6 +22,7 @@ async function fetchAllBibliography() {
       start += pageSize;
     }
   }
+
   return allItems;
 }
 
@@ -33,22 +35,16 @@ function generateAutoTags(item) {
 
 function renderResults(items) {
   const resultsDiv = document.getElementById('results');
-  resultsDiv.innerHTML = '';
+  resultsDiv.innerHTML = ''; // Clear previous content
 
   items.forEach(item => {
-    let tags = item.data.tags?.map(tag => tag.tag) || [];
-    const autoTags = generateAutoTags(item);
-    tags = tags.concat(autoTags);
-
     const div = document.createElement('div');
     div.className = 'col-md-6';
     div.innerHTML = `
       <div class="card h-100 mb-4">
         <div class="card-body">
           <h5 class="card-title">${item.data.title || 'No Title'}</h5>
-          <h6 class="card-subtitle mb-2 text-muted">${item.data.creators?.map(c => c.lastName).join(', ') || 'Unknown Author'}</h6>
-          <p class="card-text">${item.data.abstractNote || 'No annotation available.'}</p>
-          <p class="card-text"><small class="text-muted">Tags: ${tags.join(', ') || 'No tags'}</small></p>
+          <p class="card-text">${item.data.abstractNote || 'No abstract available'}</p>
         </div>
       </div>
     `;
