@@ -28,10 +28,10 @@ async function fetchLibrary() {
   );
 }
 
-// Render cards into #results
+// Render cards into #results (replaces spinner)
 function renderResults(items) {
   const container = document.getElementById('results');
-  container.innerHTML = '';
+  container.innerHTML = '';  // **wipes out** the spinner
   if (items.length === 0) {
     container.innerHTML = '<div class="col"><p>No results.</p></div>';
     return;
@@ -65,12 +65,12 @@ function applyFilters() {
   const type  = document.getElementById('typeFilter').value;
   const query = document.getElementById('searchBar').value.trim();
 
-  // 1) Filter by type
+  // 1) Type filter
   let pool = type
     ? allItems.filter(i => i.data.itemType === type)
     : allItems.slice();
 
-  // 2) Fuzzy search if query
+  // 2) Fuzzy search
   if (query) {
     pool = fuse.search(query).map(r => r.item);
   }
@@ -79,16 +79,10 @@ function applyFilters() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // 1) Fetch library (with 10s timeout fallback)
-  allItems = await Promise.race([
-    fetchLibrary(),
-    new Promise(res => setTimeout(() => {
-      console.warn('Library fetch timed out');
-      res([]);
-    }, 10000))
-  ]);
+  // 1) Fetch library
+  allItems = await fetchLibrary();
 
-  // 2) Init Fuse.js
+  // 2) Initialize Fuse.js
   fuse = new Fuse(allItems, {
     keys: [
       { name: 'data.title',        weight: 0.5 },
@@ -98,11 +92,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     threshold: 0.3
   });
 
-  // 3) Initial render
+  // 3) Initial render (replaces spinner)
   renderResults(allItems);
 
   // 4) Bind controls
-  document.getElementById('searchBtn').addEventListener('click', applyFilters);
+  document.getElementById('searchBtn')
+          .addEventListener('click', applyFilters);
   document.getElementById('searchBar')
           .addEventListener('keypress', e => { if (e.key === 'Enter') applyFilters(); });
   document.getElementById('typeFilter')
