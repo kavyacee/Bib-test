@@ -1,8 +1,8 @@
-// 🚨 Replace with your own Zotero information
+// 🚨 Replace these with your own Zotero info
 const serverURL = 'https://zotero-proxy-hpa32g8qt-kavyas-projects-e6f8f6d9.vercel.app/zotero';
-const userID = '6928802';    // e.g., 1234567
-const apiKey = 'r7REcrUUJVF5BkmNfwDkxwqQ';    // e.g., AbCdEfGh123456
-const collectionKey = 'DVF2ZBSK';
+const userID = '6928802';    // e.g., your real Zotero User ID
+const apiKey = 'r7REcrUUJVF5BkmNfwDkxwqQ';    // your Zotero API key
+const collectionKey = 'DVF2ZBSK';              // your Zotero Collection Key
 
 async function fetchAllBibliography() {
   let allItems = [];
@@ -27,11 +27,11 @@ async function fetchAllBibliography() {
 }
 
 function generateAutoTags(item) {
-  const text = (item.data.title + ' ' + item.data.abstractNote).toLowerCase();
+  // Make sure abstractNote exists by providing a default empty string
+  const abstractText = item.data.abstractNote || '';
+  const text = (item.data.title + ' ' + abstractText).toLowerCase();
   const keywords = ['disability', 'policy', 'health', 'education', 'technology', 'race', 'gender', 'climate', 'rights', 'poverty'];
-
-  const foundTags = keywords.filter(keyword => text.includes(keyword));
-  return foundTags;
+  return keywords.filter(keyword => text.includes(keyword));
 }
 
 function renderResults(items) {
@@ -43,9 +43,10 @@ function renderResults(items) {
     const autoTags = generateAutoTags(item);
     tags = tags.concat(autoTags);
 
-    // Auto-fill annotation if missing
-    let annotation = item.data.abstractNote;
-    if (!annotation || annotation.trim() === '') {
+    // Safely retrieve the abstract, treating non-string values as empty string
+    let annotation = (item.data.abstractNote || '');
+    if (annotation.trim() === '') {
+      // Generate a placeholder annotation
       annotation = `This paper titled "${item.data.title}" by ${item.data.creators?.map(c => c.lastName).join(', ') || 'Unknown Author'} discusses important topics.`;
     }
 
@@ -71,7 +72,7 @@ function setupSearch(items) {
     const query = e.target.value.toLowerCase();
     const filtered = items.filter(item => {
       const title = item.data.title?.toLowerCase() || '';
-      const abstract = item.data.abstractNote?.toLowerCase() || '';
+      const abstract = (item.data.abstractNote || '').toLowerCase();
       const realTags = item.data.tags?.map(tag => tag.tag.toLowerCase()).join(' ') || '';
       const autoTags = generateAutoTags(item).join(' ').toLowerCase();
       return title.includes(query) || abstract.includes(query) || realTags.includes(query) || autoTags.includes(query);
