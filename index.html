@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Accessible Annotated Bibliography</title>
+  <title>Semantic Zotero Search</title>
   <link 
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" 
     rel="stylesheet" 
@@ -13,42 +13,31 @@
 <body class="container py-4">
 
   <header class="mb-4 text-center">
-    <h1 class="display-5">📚 Annotated Bibliography</h1>
+    <h1 class="display-5">📚 Ask Your Zotero Library</h1>
+    <p class="text-muted">Type a question and press Enter to find the most relevant papers.</p>
   </header>
 
-  <!-- Search + Type Filter Row -->
-  <div class="row mb-4">
-    <div class="col-md-6 mb-3">
-      <label for="searchBar" class="form-label">Search annotations</label>
-      <input
-        type="search"
-        id="searchBar"
-        class="form-control"
-        placeholder="Type keywords…"
-        aria-controls="results">
-    </div>
-    <div class="col-md-6 mb-3">
-      <label for="typeFilter" class="form-label">Filter by type</label>
-      <select id="typeFilter" class="form-select" aria-controls="results">
-        <option value="">All types</option>
-        <option value="journalArticle">Journal Article</option>
-        <option value="newspaperArticle">News Article</option>
-        <option value="report">Report</option>
-        <option value="webpage">Webpage</option>
-      </select>
-    </div>
+  <div class="mb-4">
+    <label for="searchBar" class="form-label">Your question:</label>
+    <input
+      type="search"
+      id="searchBar"
+      class="form-control"
+      placeholder="e.g. Do queer people like bars?"
+      aria-controls="results">
   </div>
 
-  <!-- Results Grid -->
   <div id="results" class="row row-cols-1 row-cols-md-2 g-4" aria-live="polite"></div>
 
-  <!-- Fuse.js for fuzzy search -->
+  <!-- TensorFlow.js -->
   <script 
-    src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js" 
-    integrity="sha384‑+J2ZW7mO5NnKm+9mWmDL7eLJ4JmBkP3p4j3K3e9uWjQz4N4tCx+vXpZBxDV9HtEi" 
-    crossorigin="anonymous">
+    src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0/dist/tf.min.js">
   </script>
-  <!-- Your application code -->
+  <!-- Universal Sentence Encoder -->
+  <script 
+    src="https://cdn.jsdelivr.net/npm/@tensorflow-models/universal-sentence-encoder@1.3.3/dist/universal-sentence-encoder.min.js">
+  </script>
+  <!-- Your semantic‑search code -->
   <script src="script.js" defer></script>
 </body>
 </html>
