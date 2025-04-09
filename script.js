@@ -8,57 +8,44 @@ const collectionKey = 'DVF2ZBSK';
 
 console.log('🔍 script.js is running');
 
-// ─── Fetch all items from your Zotero collection ─────────────────────────────
+let papers = [];
+let fuse;
+
+// ─── Fetch & filter Zotero items ─────────────────────────────────────────────
 async function fetchAllBibliography() {
   let allItems = [], start = 0, pageSize = 100, moreData = true;
 
   while (moreData) {
-    const url = `${serverURL}` +
-                `?userID=${userID}` +
-                `&apiKey=${apiKey}` +
-                `&collectionKey=${collectionKey}` +
-                `&limit=${pageSize}` +
-                `&start=${start}`;
+    const url = `${serverURL}?userID=${userID}&apiKey=${apiKey}` +
+                `&collectionKey=${collectionKey}&limit=${pageSize}&start=${start}`;
     console.log('▶️ Fetching URL:', url);
 
     const res = await fetch(url);
     console.log('⏳ Response status:', res.status);
-    if (!res.ok) {
-      console.error('Zotero proxy error:', res.status);
-      break;
-    }
+    if (!res.ok) break;
 
     const data = await res.json();
-    console.log('✅ Fetched raw items count:', data.length);
-
     allItems = allItems.concat(data);
     if (data.length < pageSize) moreData = false;
     else start += pageSize;
   }
 
-  return allItems;
+  // filter out attachments & notes
+  return allItems.filter(item =>
+    item.data.itemType !== 'attachment' &&
+    item.data.itemType !== 'note'
+  );
 }
 
-// ─── Global state ─────────────────────────────────────────────────────────────
-let papers = [];
-let fuse;
-
-// ─── Load, filter, map, render & index Zotero items ──────────────────────────
+// ─── Load, map, render & index Zotero items ───────────────────────────────────
 async function loadLibrary() {
   try {
     const raw = await fetchAllBibliography();
-    console.log('🔍 Total raw items:', raw.length);
+    console.log('🔍 Total items after filtering:', raw.length);
 
-    // ── FILTER OUT attachments & notes ───────────────────────────────
-    const filteredRaw = raw.filter(item => {
-      const t = item.data.itemType;
-      return t !== 'attachment' && t !== 'note';
-    });
-    console.log('🔍 After filtering attachments/notes:', filteredRaw.length);
-
-    // ── MAP TO SIMPLER OBJECTS ───────────────────────────────────────
-    papers = filteredRaw.map(item => ({
+    papers = raw.map(item => ({
       id:       item.data.key,
+      itemType: item.data.itemType,
       title:    item.data.title        || '',
       authors:  item.data.creators
                    ? item.data.creators.map(c => c.lastName)
@@ -70,12 +57,12 @@ async function loadLibrary() {
       url:      item.data.url          || '#'
     }));
 
-    // ── RENDER ALL PAPERS ON LANDING ────────────────────────────────
-    console.log('▶️ renderResults called with', papers.length, 'items');
+    // render all on landing
     renderResults(papers.map(p => ({ item: p })));
 
-    // ── INIT FUSE.JS SEARCH ─────────────────────────────────────────
+    // init Fuse and bind filters
     initSearch();
+    bindTypeFilter();
   } catch (err) {
     console.error('Failed to load Zotero library:', err);
   }
@@ -98,23 +85,37 @@ function initSearch() {
 // ─── Wire up the search input ─────────────────────────────────────────────────
 function bindSearchBox() {
   const input = document.getElementById('searchBar');
-  if (!input) return console.error('No #searchBar found');
+  input.addEventListener('input', applyFilters);
+}
 
-  input.addEventListener('input', e => {
-    const q = e.target.value.trim();
-    const results = q
-      ? fuse.search(q)
-      : papers.map(p => ({ item: p }));
-    renderResults(results);
-  });
+// ─── Wire up the type dropdown ────────────────────────────────────────────────
+function bindTypeFilter() {
+  const select = document.getElementById('typeFilter');
+  select.addEventListener('change', applyFilters);
+}
+
+// ─── Combine search + type filter, then render ────────────────────────────────
+function applyFilters() {
+  const q = document.getElementById('searchBar').value.trim();
+  const type = document.getElementById('typeFilter').value;
+
+  // 1) search
+  let results = q ? fuse.search(q).map(r => r.item) : papers.slice();
+
+  // 2) filter by type if selected
+  if (type) {
+    results = results.filter(item => item.itemType === type);
+  }
+
+  // 3) render
+  renderResults(results.map(item => ({ item })));
 }
 
 // ─── Render results into Bootstrap cards ─────────────────────────────────────
 function renderResults(results) {
   const container = document.getElementById('results');
-  if (!container) return console.error('No #results container found');
-
   container.innerHTML = '';
+
   results.forEach(r => {
     const { title, authors, year, url, abstract } = r.item;
     const col = document.createElement('div');
