@@ -1,5 +1,5 @@
 // 🚨 Replace these with your own Zotero information
-const serverURL = 'https://zotero-proxy-hpa32g8qt-kavyas-projects-e6f8f6d9.vercel.app/zotero';
+const serverURL = 'https://zotero-proxy-1.onrender.com'';
 const userID = '6928802';    // e.g., 1234567
 const apiKey = 'r7REcrUUJVF5BkmNfwDkxwqQ';    // e.g., AbCdEfGh123456
 const collectionKey = 'DVF2ZBSK';
