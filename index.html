@@ -13,6 +13,7 @@
     body { max-width: 960px; margin: auto; padding: 1rem; }
     .card { transition: transform .1s; }
     .card:hover { transform: scale(1.02); }
+    #app { display: none; }
   </style>
 </head>
 <body>
@@ -22,16 +23,14 @@
     <p class="text-muted">Filter by type, then search titles & abstracts.</p>
   </header>
 
-  <!-- LOADING SPINNER -->
+  <!-- Spinner -->
   <div id="loading" class="d-flex justify-content-center align-items-center my-5">
-    <div class="spinner-border" role="status">
-      <span class="visually-hidden">Loading…</span>
-    </div>
+    <div class="spinner-border" role="status"><span class="visually-hidden">Loading…</span></div>
     <span class="ms-2">Loading your library…</span>
   </div>
 
-  <!-- APP UI (hidden until data is ready) -->
-  <div id="app" class="d-none">
+  <!-- App UI -->
+  <div id="app">
     <div class="row mb-4 g-2">
       <div class="col-md-4">
         <label for="typeFilter" class="form-label">Filter by type</label>
@@ -54,15 +53,118 @@
         <button id="searchBtn" class="btn btn-primary">Search</button>
       </div>
     </div>
-
-    <div id="results" class="row row-cols-1 row-cols-md-2 g-4" aria-live="polite">
-      <!-- results will appear here -->
-    </div>
+    <div id="results" class="row row-cols-1 row-cols-md-2 g-4" aria-live="polite"></div>
   </div>
 
-  <!-- Fuse.js for fuzzy search -->
+  <!-- Fuse.js -->
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
-  <!-- Your application code -->
-  <script src="script.js" defer></script>
+
+  <!-- Inline app script -->
+  <script>
+  (async function() {
+    const serverURL     = 'https://zotero-proxy-1.onrender.com/zotero';
+    const userID        = '6928802';
+    const apiKey        = 'r7REcrUUJVF5BkmNfwDkxwqQ';
+    const collectionKey = 'DVF2ZBSK';
+
+    let allItems = [], fuse;
+
+    // fetch & filter Zotero items
+    async function fetchLibrary() {
+      let items = [], start = 0, pageSize = 100, more = true;
+      while (more) {
+        const url = \`\${serverURL}?userID=\${userID}&apiKey=\${apiKey}\` +
+                    \`&collectionKey=\${collectionKey}&limit=\${pageSize}&start=\${start}\`;
+        const res = await fetch(url);
+        if (!res.ok) break;
+        const data = await res.json();
+        items = items.concat(data);
+        if (data.length < pageSize) more = false;
+        else start += pageSize;
+      }
+      return items.filter(i =>
+        i.data.itemType !== 'attachment' &&
+        i.data.itemType !== 'note'
+      );
+    }
+
+    // render function
+    function renderResults(items) {
+      const c = document.getElementById('results');
+      c.innerHTML = '';
+      if (!items.length) {
+        c.innerHTML = '<div class="col"><p>No results.</p></div>';
+        return;
+      }
+      items.forEach(item => {
+        const { title, abstractNote, creators, date, url } = item.data;
+        const authors = creators?.map(c => c.lastName).join(', ') || '';
+        const year    = date?.split('-')[0] || '';
+        const col = document.createElement('div');
+        col.className = 'col';
+        col.innerHTML = \`
+          <article class="card h-100">
+            <div class="card-body d-flex flex-column">
+              <h5 class="card-title">
+                <a href="\${url||'#'}" target="_blank" rel="noopener">\${title||'No title'}</a>
+              </h5>
+              <h6 class="card-subtitle mb-2 text-muted">
+                \${authors}\${year? ' ('+year+')': ''}
+              </h6>
+              <p class="card-text flex-grow-1">\${abstractNote||''}</p>
+            </div>
+          </article>\`;
+        c.appendChild(col);
+      });
+    }
+
+    // apply filters + fuzzy search
+    function applyFilters() {
+      const type  = document.getElementById('typeFilter').value;
+      const query = document.getElementById('searchBar').value.trim();
+      let pool = type
+        ? allItems.filter(i => i.data.itemType === type)
+        : allItems.slice();
+      if (query) {
+        pool = fuse.search(query).map(r => r.item);
+      }
+      renderResults(pool);
+    }
+
+    try {
+      // 1) load data
+      allItems = await fetchLibrary();
+
+      // 2) init Fuse.js
+      fuse = new Fuse(allItems, {
+        keys: [
+          { name: 'data.title',        weight: 0.5 },
+          { name: 'data.abstractNote', weight: 0.4 },
+          { name: 'data.creators',     weight: 0.1 }
+        ],
+        threshold: 0.3
+      });
+
+      // 3) initial render
+      renderResults(allItems);
+
+      // 4) bind events
+      document.getElementById('searchBtn')
+              .addEventListener('click', applyFilters);
+      document.getElementById('searchBar')
+              .addEventListener('keypress', e => { if (e.key==='Enter') applyFilters(); });
+      document.getElementById('typeFilter')
+              .addEventListener('change', applyFilters);
+    } catch (err) {
+      console.error('Error loading library:', err);
+      document.getElementById('results').innerHTML =
+        '<div class="col"><p class="text-danger">Failed to load library.</p></div>';
+    } finally {
+      // hide spinner, show app
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('app').style.display     = 'block';
+    }
+  })();
+  </script>
 </body>
 </html>
