@@ -1,52 +1,63 @@
 (async function(){
-  // ─── Zotero proxy config ────────────────────────────────────────────────
+  // Zotero proxy config
   const serverURL     = 'https://zotero-proxy-1.onrender.com/zotero';
   const userID        = '6928802';
   const apiKey        = 'r7REcrUUJVF5BkmNfwDkxwqQ';
   const collectionKey = 'DVF2ZBSK';
 
-  // ─── Fetch & filter Zotero items ───────────────────────────────────────
+  // cosine similarity helper
+  function cosine(a, b) {
+    let dot=0, na=0, nb=0;
+    for(let i=0;i<a.length;i++){
+      dot+=a[i]*b[i]; na+=a[i]*a[i]; nb+=b[i]*b[i];
+    }
+    return dot/(Math.sqrt(na)*Math.sqrt(nb));
+  }
+
+  // fetch & filter Zotero items
   async function fetchAll() {
-    let all = [], start = 0, limit = 100, more = true;
-    while (more) {
-      const url = `${serverURL}?userID=${userID}&apiKey=${apiKey}` +
+    let all=[], start=0, limit=100, more=true;
+    while(more){
+      const url = `${serverURL}?userID=${userID}&apiKey=${apiKey}`+
                   `&collectionKey=${collectionKey}&limit=${limit}&start=${start}`;
       const res = await fetch(url);
-      if (!res.ok) break;
+      if(!res.ok) break;
       const data = await res.json();
       all = all.concat(data);
-      if (data.length < limit) more = false;
-      else start += limit;
+      if(data.length<limit) more=false;
+      else start+=limit;
     }
-    return all.filter(i =>
-      i.data.itemType !== 'attachment' &&
-      i.data.itemType !== 'note'
+    return all.filter(i=>
+      i.data.itemType!=='attachment'&&i.data.itemType!=='note'
     );
   }
 
-  // ─── Load USE model & your library ─────────────────────────────────────
+  // load model & library
   const model = await use.load();
   const raw   = await fetchAll();
-  const papers = raw.map(i => ({
-    title:    i.data.title        || '',
-    abstract: i.data.abstractNote || '',
-    authors:  i.data.creators?.map(c=>c.lastName).join(', ')||'',
-    year:     i.data.date?.split('-')[0]||'',
-    url:      i.data.url||'#'
+  const papers = raw.map((i, idx)=>({
+    index: idx,
+    type: i.data.itemType,
+    title: i.data.title||'',
+    abstract: i.data.abstractNote||'',
+    authors: i.data.creators?.map(c=>c.lastName).join(',')||'',
+    year: i.data.date?.split('-')[0]||'',
+    url: i.data.url||'#'
   }));
 
-  // ─── Embed all papers ───────────────────────────────────────────────────
+  // embed papers
   const texts = papers.map(p=>`${p.title}. ${p.abstract}`);
   const embeddings = await model.embed(texts);
+  const embeddingArray = await embeddings.array();
 
-  // ─── Render function ───────────────────────────────────────────────────
-  function render(list) {
-    const c = document.getElementById('results');
-    c.innerHTML = '';
-    list.forEach(p => {
-      const col = document.createElement('div');
-      col.className = 'col';
-      col.innerHTML = `
+  // render helper
+  function render(list){
+    const c=document.getElementById('results');
+    c.innerHTML='';
+    list.forEach(p=>{
+      const col=document.createElement('div');
+      col.className='col';
+      col.innerHTML=`
         <article class="card h-100">
           <div class="card-body d-flex flex-column">
             <h5 class="card-title">
@@ -62,29 +73,28 @@
     });
   }
 
-  // ─── Initial render (all papers) ───────────────────────────────────────
-  render(papers);
-
-  // ─── Semantic search handler ──────────────────────────────────────────
-  async function doSearch() {
+  // search logic
+  async function doSearch(){
     const q = document.getElementById('searchBar').value.trim();
-    if (!q) { render(papers); return; }
-    const qv = await model.embed([q]);
-    const sims = embeddings
-      .dot(qv.transpose())
-      .arraySync()
-      .map(r=>r[0]);
-    const ranked = papers
-      .map((p,i)=>({p,score:sims[i]}))
-      .sort((a,b)=>b.score - a.score)
-      .slice(0,20)
-      .map(x=>x.p);
-    render(ranked);
+    const type = document.getElementById('typeFilter').value;
+    let pool = type
+      ? papers.filter(p=>p.type===type)
+      : papers.slice();
+    if(!q) return render(pool);
+    const qv = (await model.embed([q])).arraySync()[0];
+    const scored = pool.map(p=>({
+      p, score: cosine(embeddingArray[p.index],qv)
+    }));
+    scored.sort((a,b)=>b.score-a.score);
+    render(scored.slice(0,20).map(x=>x.p));
   }
 
-  // ─── Bind Enter & Button ──────────────────────────────────────────────
+  // bind events
   document.getElementById('searchBar')
-    .addEventListener('keypress', e => { if (e.key==='Enter') doSearch(); });
+    .addEventListener('keypress', e=>{ if(e.key==='Enter') doSearch(); });
   document.getElementById('searchBtn')
     .addEventListener('click', doSearch);
+
+  // initial render
+  render(papers);
 })();
