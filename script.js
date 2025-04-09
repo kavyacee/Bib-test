@@ -26,21 +26,34 @@ async function fetchAllBibliography() {
   return allItems;
 }
 
+function generateAutoTags(item) {
+  const text = (item.data.title + ' ' + item.data.abstractNote).toLowerCase();
+  const keywords = ['disability', 'policy', 'health', 'education', 'technology', 'race', 'gender', 'climate', 'rights', 'poverty'];
+
+  const foundTags = keywords.filter(keyword => text.includes(keyword));
+  return foundTags;
+}
+
 function renderResults(items) {
   const resultsDiv = document.getElementById('results');
   resultsDiv.innerHTML = ''; // Clear previous results
 
   items.forEach(item => {
+    let tags = item.data.tags?.map(tag => tag.tag) || [];
+    const autoTags = generateAutoTags(item);
+    tags = tags.concat(autoTags);
+
     const div = document.createElement('div');
     div.className = 'col-md-6';
     div.innerHTML = `
-      <div class="card h-100 mb-4">
-        <div class="card-body">
-          <h5 class="card-title">${item.data.title || 'No Title'}</h5>
-          <h6 class="card-subtitle mb-2 text-muted">${item.data.creators?.map(c => c.lastName).join(', ') || 'Unknown Author'}</h6>
-          <p class="card-text">${item.data.abstractNote || 'No annotation available.'}</p>
-        </div>
-      </div>
+      &lt;div class="card h-100 mb-4"&gt;
+        &lt;div class="card-body"&gt;
+          &lt;h5 class="card-title"&gt;${item.data.title || 'No Title'}&lt;/h5&gt;
+          &lt;h6 class="card-subtitle mb-2 text-muted"&gt;${item.data.creators?.map(c => c.lastName).join(', ') || 'Unknown Author'}&lt;/h6&gt;
+          &lt;p class="card-text"&gt;${item.data.abstractNote || 'No annotation available.'}&lt;/p&gt;
+          &lt;p class="card-text"&gt;&lt;small class="text-muted"&gt;Tags: ${tags.join(', ') || 'No tags'}&lt;/small&gt;&lt;/p&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
     `;
     resultsDiv.appendChild(div);
   });
@@ -53,7 +66,9 @@ function setupSearch(items) {
     const filtered = items.filter(item => {
       const title = item.data.title?.toLowerCase() || '';
       const abstract = item.data.abstractNote?.toLowerCase() || '';
-      return title.includes(query) || abstract.includes(query);
+      const realTags = item.data.tags?.map(tag => tag.tag.toLowerCase()).join(' ') || '';
+      const autoTags = generateAutoTags(item).join(' ').toLowerCase();
+      return title.includes(query) || abstract.includes(query) || realTags.includes(query) || autoTags.includes(query);
     });
     renderResults(filtered);
   });
