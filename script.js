@@ -5,9 +5,6 @@
   const apiKey        = 'r7REcrUUJVF5BkmNfwDkxwqQ';
   const collectionKey = 'DVF2ZBSK';
 
- // Hide it when ready:
-document.getElementById('loading').style.display = 'none';
-document.getElementById('results').style.display = '';
   // cosine similarity helper
   function cosine(a, b) {
     let dot=0, na=0, nb=0;
@@ -21,7 +18,7 @@ document.getElementById('results').style.display = '';
   async function fetchAll() {
     let all=[], start=0, limit=100, more=true;
     while(more){
-      const url = `${serverURL}?userID=${userID}&apiKey=${apiKey}`+
+      const url = `${serverURL}?userID=${userID}&apiKey=${apiKey}` +
                   `&collectionKey=${collectionKey}&limit=${limit}&start=${start}`;
       const res = await fetch(url);
       if(!res.ok) break;
@@ -30,13 +27,14 @@ document.getElementById('results').style.display = '';
       if(data.length<limit) more=false;
       else start+=limit;
     }
+    // remove attachments & notes
     return all.filter(i=>
-      i.data.itemType!=='attachment'&&i.data.itemType!=='note'
+      i.data.itemType!=='attachment' && i.data.itemType!=='note'
     );
   }
 
-  // load model & library
-  const model = await use.load();
+  // load USE model & Zotero library
+  const model = await use.load();    // now `use` is defined
   const raw   = await fetchAll();
   const papers = raw.map((i, idx)=>({
     index: idx,
@@ -48,7 +46,7 @@ document.getElementById('results').style.display = '';
     url: i.data.url||'#'
   }));
 
-  // embed papers
+  // embed all papers
   const texts = papers.map(p=>`${p.title}. ${p.abstract}`);
   const embeddings = await model.embed(texts);
   const embeddingArray = await embeddings.array();
@@ -80,14 +78,19 @@ document.getElementById('results').style.display = '';
   async function doSearch(){
     const q = document.getElementById('searchBar').value.trim();
     const type = document.getElementById('typeFilter').value;
+    // 1) filter by type
     let pool = type
       ? papers.filter(p=>p.type===type)
       : papers.slice();
+    // 2) if no query, render all in pool
     if(!q) return render(pool);
+    // 3) embed query
     const qv = (await model.embed([q])).arraySync()[0];
+    // 4) compute scores on pool
     const scored = pool.map(p=>({
       p, score: cosine(embeddingArray[p.index],qv)
     }));
+    // 5) sort & take top 20
     scored.sort((a,b)=>b.score-a.score);
     render(scored.slice(0,20).map(x=>x.p));
   }
