@@ -1,29 +1,31 @@
 // 🚀 Client‑side search over your live Zotero library
 
-// Zotero proxy configuration
+// ─── Zotero proxy configuration ───────────────────────────────────────────────
 const serverURL     = 'https://zotero-proxy-1.onrender.com/zotero';
 const userID        = '6928802';
 const apiKey        = 'r7REcrUUJVF5BkmNfwDkxwqQ';
 const collectionKey = 'DVF2ZBSK';
 
-console.log('🔍 script.js is running');
-
-// Fetch all items from your Zotero collection
+// ─── Fetch all items from your Zotero collection ─────────────────────────────
 async function fetchAllBibliography() {
-  let allItems = [], start = 0, pageSize = 100, moreData = true;
+  let allItems = [];
+  let start    = 0;
+  const pageSize = 100;
+  let moreData = true;
 
   while (moreData) {
-    const url = `${serverURL}?userID=${userID}&apiKey=${apiKey}` +
-                `&collectionKey=${collectionKey}&limit=${pageSize}&start=${start}`;
-    console.log('▶️ Fetching URL:', url);
+    const url = `${serverURL}` +
+                `?userID=${userID}` +
+                `&apiKey=${apiKey}` +
+                `&collectionKey=${collectionKey}` +
+                `&limit=${pageSize}` +
+                `&start=${start}`;
     const res = await fetch(url);
-    console.log('⏳ Response status:', res.status);
     if (!res.ok) {
       console.error('Zotero proxy error:', res.status);
       break;
     }
     const data = await res.json();
-    console.log('✅ Fetched items count:', data.length);
     allItems = allItems.concat(data);
     if (data.length < pageSize) moreData = false;
     else start += pageSize;
@@ -32,14 +34,16 @@ async function fetchAllBibliography() {
   return allItems;
 }
 
-let papers = [], fuse;
+// ─── Global state ─────────────────────────────────────────────────────────────
+let papers = [];
+let fuse;
 
-// Load, map, and index Zotero items
+// ─── Load, map, render & index Zotero items ──────────────────────────────────
 async function loadLibrary() {
   try {
     const items = await fetchAllBibliography();
     papers = items.map(item => ({
-      id:       item.key || item.data.key,
+      id:       item.data.key,
       title:    item.data.title        || '',
       authors:  item.data.creators
                   ? item.data.creators.map(c => c.lastName)
@@ -51,16 +55,17 @@ async function loadLibrary() {
       url:      item.data.url          || '#'
     }));
 
-    console.log('▶️ renderResults called with', papers.length, 'items');
+    // 1) Render all papers on landing
     renderResults(papers.map(p => ({ item: p })));
 
+    // 2) Initialize Fuse.js search
     initSearch();
   } catch (err) {
     console.error('Failed to load Zotero library:', err);
   }
 }
 
-// Initialize Fuse.js for fuzzy search
+// ─── Initialize Fuse.js for fuzzy search ─────────────────────────────────────
 function initSearch() {
   fuse = new Fuse(papers, {
     keys: [
@@ -74,10 +79,11 @@ function initSearch() {
   bindSearchBox();
 }
 
-// Wire up the search input
+// ─── Wire up the search input ─────────────────────────────────────────────────
 function bindSearchBox() {
   const input = document.getElementById('searchBar');
   if (!input) return console.error('No #searchBar found');
+
   input.addEventListener('input', e => {
     const q = e.target.value.trim();
     const results = q
@@ -87,10 +93,11 @@ function bindSearchBox() {
   });
 }
 
-// Render up to 10 results as Bootstrap cards
+// ─── Render results into Bootstrap cards ─────────────────────────────────────
 function renderResults(results) {
   const container = document.getElementById('results');
   if (!container) return console.error('No #results container found');
+
   container.innerHTML = '';
   results.forEach(r => {
     const { title, authors, year, url, abstract } = r.item;
@@ -103,7 +110,7 @@ function renderResults(results) {
             <a href="${url}" target="_blank" rel="noopener">${title}</a>
           </h5>
           <h6 class="card-subtitle mb-3 text-muted">
-            ${authors.join(', ')}${year ? ' ('+year+')' : ''}
+            ${authors.join(', ')}${year ? ' (' + year + ')' : ''}
           </h6>
           <p class="card-text flex-grow-1">${abstract}</p>
         </div>
@@ -112,6 +119,6 @@ function renderResults(results) {
   });
 }
 
-// On page load, fetch & index, then refresh every 5 min
+// ─── Kick everything off on page load & auto‑refresh ─────────────────────────
 window.addEventListener('DOMContentLoaded', loadLibrary);
 setInterval(loadLibrary, 5 * 60 * 1000);
