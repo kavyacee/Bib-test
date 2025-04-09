@@ -42,7 +42,25 @@ function setupSearch(items) {
 }
 
 // Main
-fetchBibliography().then(items => {
-  renderResults(items);
-  setupSearch(items);
-});
+async function fetchBibliography() {
+  let allItems = [];
+  let start = 0;
+  const pageSize = 100;
+  let moreData = true;
+
+  while (moreData) {
+    const response = await fetch(`https://api.zotero.org/users/${userID}/collections/${collectionKey}/items?format=json&key=${apiKey}&limit=${pageSize}&start=${start}`);
+    const data = await response.json();
+
+    allItems = allItems.concat(data);
+
+    if (data.length < pageSize) {
+      moreData = false; // No more items to fetch
+    } else {
+      start += pageSize; // Move to next page
+    }
+  }
+
+  return allItems;
+}
+
