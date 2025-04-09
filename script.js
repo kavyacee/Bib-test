@@ -3,7 +3,7 @@ const userID = '6928802';     // Example: 1234567
 const collectionKey = 'DVF2ZBSK';     // Example: AbCdEfGh123456
 
 async function fetchBibliography() {
-  const response = await fetch(`https://api.zotero.org/users/${userID}/items?format=json&key=${collectionKey}`);
+  const response = await fetch(`https://api.zotero.org/users/${userID}/items?format=json&key=${collectionKey}&limit=100`);
   const data = await response.json();
   return data;
 }
