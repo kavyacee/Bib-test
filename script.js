@@ -1,5 +1,5 @@
 // 🚨 Replace these with your own Zotero information
-const serverURL = 'https://zotero-proxy-1.onrender.com'';
+const serverURL = 'https://zotero-proxy-1.onrender.com/zotero'';
 const userID = '6928802';    // e.g., 1234567
 const apiKey = 'r7REcrUUJVF5BkmNfwDkxwqQ';    // e.g., AbCdEfGh123456
 const collectionKey = 'DVF2ZBSK';
