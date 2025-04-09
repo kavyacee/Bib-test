@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Ask this Annotated Bibliography</title>
+  <title>Ask This Annotated Bibliography</title>
   <link 
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" 
     rel="stylesheet" crossorigin="anonymous">
@@ -16,29 +16,41 @@
 <body class="py-4">
 
   <header class="text-center mb-4">
-    <h1 class="display-5">📚 Ask this Annotated Bibliography</h1>
-    <p class="text-muted">Type a question and hit Enter or click Search to find the most relevant papers.</p>
+    <h1 class="display-5">📚 Ask This Annotated Bibliography</h1>
+    <p class="text-muted">Filter by type, type your question, and hit Enter or Search.</p>
   </header>
 
-  <!-- Search input + button -->
-  <div class="input-group mb-4">
-    <input
-      type="search"
-      id="searchBar"
-      class="form-control"
-      placeholder="e.g. Do queer people like bars?"
-      aria-label="Search">
-    <button id="searchBtn" class="btn btn-primary">Search</button>
+  <!-- Filters -->
+  <div class="row mb-4 g-2">
+    <div class="col-md-4">
+      <label for="typeFilter" class="form-label">Filter by type</label>
+      <select id="typeFilter" class="form-select">
+        <option value="">All types</option>
+        <option value="journalArticle">Journal Article</option>
+        <option value="newspaperArticle">News Article</option>
+        <option value="report">Report</option>
+        <option value="webpage">Webpage</option>
+      </select>
+    </div>
+    <div class="col-md-8 input-group">
+      <label class="visually-hidden" for="searchBar">Your question</label>
+      <input
+        type="search"
+        id="searchBar"
+        class="form-control"
+        placeholder="e.g. Do queer people like bars?"
+        aria-label="Your question">
+      <button id="searchBtn" class="btn btn-primary">Search</button>
+    </div>
   </div>
 
-  <!-- Results grid -->
+  <!-- Results -->
   <div id="results" class="row row-cols-1 row-cols-md-2 g-4" aria-live="polite"></div>
 
-  <!-- TensorFlow.js -->
+  <!-- TFJS + USE -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0/dist/tf.min.js"></script>
-  <!-- Universal Sentence Encoder -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/universal-sentence-encoder@1.3.3/dist/universal-sentence-encoder.min.js"></script>
-  <!-- Your app code -->
+  <!-- Your JS -->
   <script src="script.js" defer></script>
 </body>
 </html>
