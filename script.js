@@ -3,6 +3,7 @@ const userID = '6928802';    // e.g., 1234567
 const apiKey = 'r7REcrUUJVF5BkmNfwDkxwqQ';    // e.g., AbCdEfGh123456
 const collectionKey = 'DVF2ZBSK';  // e.g., ABCD1234
 
+
 async function fetchAllBibliography() {
   let allItems = [];
   let start = 0;
@@ -10,7 +11,10 @@ async function fetchAllBibliography() {
   let moreData = true;
 
   while (moreData) {
-    const response = await fetch(`https://api.zotero.org/users/${userID}/collections/${collectionKey}/items?format=json&key=${apiKey}&limit=${pageSize}&start=${start}`);
+    const proxyUrl = 'https://corsproxy.io/?';
+    const targetUrl = `https://api.zotero.org/users/${userID}/collections/${collectionKey}/items?format=json&key=${apiKey}&limit=${pageSize}&start=${start}`;
+
+    const response = await fetch(proxyUrl + encodeURIComponent(targetUrl));
     const data = await response.json();
 
     allItems = allItems.concat(data);
@@ -46,4 +50,20 @@ function renderResults(items) {
 }
 
 function setupSearch(items) {
-  const searchBar = document.get
+  const searchBar = document.getElementById('searchBar');
+  searchBar.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase();
+    const filtered = items.filter(item => {
+      const title = item.data.title?.toLowerCase() || '';
+      const abstract = item.data.abstractNote?.toLowerCase() || '';
+      return title.includes(query) || abstract.includes(query);
+    });
+    renderResults(filtered);
+  });
+}
+
+// Main
+fetchAllBibliography().then(items => {
+  renderResults(items);
+  setupSearch(items);
+});
