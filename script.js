@@ -26,12 +26,25 @@ async function fetchAllBibliography() {
   return allItems;
 }
 
-function generateAutoTags(item) {
-  const text = (item.data.title + ' ' + item.data.abstractNote).toLowerCase();
-  const keywords = ['disability', 'policy', 'health', 'education', 'technology', 'race', 'gender', 'climate', 'rights', 'poverty'];
-  const foundTags = keywords.filter(keyword => text.includes(keyword));
-  return foundTags;
-}
+let papers = [];
+let fuse;
+
+// Load, map, and index Zotero items
+async function loadLibrary() {
+  try {
+    const items = await fetchAllBibliography();
+    papers = items.map(item => ({
+      id:       item.data.key,
+      title:    item.data.title || '',
+      authors:  item.data.creators?.map(c => c.lastName) || [],
+      year:     item.data.date ? item.data.date.split('-')[0] : '',
+      abstract: item.data.abstractNote || '',
+      url:      item.data.url || '#'
+    }));
+    initSearch();
+  } catch (err) {
+    console.error('Failed to load Zotero library:', err);
+  }
 
 function renderResults(items) {
   const resultsDiv = document.getElementById('results');
