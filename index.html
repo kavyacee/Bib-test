@@ -83,8 +83,12 @@
       console.log('▶️ fetchLibrary start');
       let items = [], start = 0, pageSize = 100, more = true;
       while (more) {
-        const url = `${serverURL}?userID=${userID}&apiKey=${apiKey}` +
-                    `&collectionKey=${collectionKey}&limit=${pageSize}&start=${start}`;
+    const url = serverURL
+  + '?userID='        + encodeURIComponent(userID)
+  + '&apiKey='        + encodeURIComponent(apiKey)
+  + '&collectionKey=' + encodeURIComponent(collectionKey)
+  + '&limit='         + pageSize
+  + '&start='         + start;
         console.log('   fetching', url);
         const res = await fetch(url);
         console.log('   status', res.status);
