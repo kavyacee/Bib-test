@@ -8,12 +8,9 @@ const collectionKey = 'DVF2ZBSK';
 
 console.log('🔍 script.js is running');
 
-// ─── Fetch all items from your Zotero collection (filtering out attachments & notes) ───
+// ─── Fetch all items from your Zotero collection ─────────────────────────────
 async function fetchAllBibliography() {
-  let allItems = [];
-  let start    = 0;
-  const pageSize = 100;
-  let moreData = true;
+  let allItems = [], start = 0, pageSize = 100, moreData = true;
 
   while (moreData) {
     const url = `${serverURL}` +
@@ -32,14 +29,9 @@ async function fetchAllBibliography() {
     }
 
     const data = await res.json();
-    // ── FILTER OUT attachments & notes ───────────────────────────────
-    const filtered = data.filter(item =>
-      item.data.itemType !== 'attachment' &&
-      item.data.itemType !== 'note'
-    );
-    console.log('✅ Fetched & filtered items count:', filtered.length);
+    console.log('✅ Fetched raw items count:', data.length);
 
-    allItems = allItems.concat(filtered);
+    allItems = allItems.concat(data);
     if (data.length < pageSize) moreData = false;
     else start += pageSize;
   }
@@ -51,11 +43,21 @@ async function fetchAllBibliography() {
 let papers = [];
 let fuse;
 
-// ─── Load, map, render & index Zotero items ───────────────────────────────────
+// ─── Load, filter, map, render & index Zotero items ──────────────────────────
 async function loadLibrary() {
   try {
-    const items = await fetchAllBibliography();
-    papers = items.map(item => ({
+    const raw = await fetchAllBibliography();
+    console.log('🔍 Total raw items:', raw.length);
+
+    // ── FILTER OUT attachments & notes ───────────────────────────────
+    const filteredRaw = raw.filter(item => {
+      const t = item.data.itemType;
+      return t !== 'attachment' && t !== 'note';
+    });
+    console.log('🔍 After filtering attachments/notes:', filteredRaw.length);
+
+    // ── MAP TO SIMPLER OBJECTS ───────────────────────────────────────
+    papers = filteredRaw.map(item => ({
       id:       item.data.key,
       title:    item.data.title        || '',
       authors:  item.data.creators
@@ -68,10 +70,11 @@ async function loadLibrary() {
       url:      item.data.url          || '#'
     }));
 
+    // ── RENDER ALL PAPERS ON LANDING ────────────────────────────────
     console.log('▶️ renderResults called with', papers.length, 'items');
-    // Show all papers on landing
     renderResults(papers.map(p => ({ item: p })));
 
+    // ── INIT FUSE.JS SEARCH ─────────────────────────────────────────
     initSearch();
   } catch (err) {
     console.error('Failed to load Zotero library:', err);
