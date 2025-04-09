@@ -5,6 +5,9 @@
   const apiKey        = 'r7REcrUUJVF5BkmNfwDkxwqQ';
   const collectionKey = 'DVF2ZBSK';
 
+ // Hide it when ready:
+document.getElementById('loading').style.display = 'none';
+document.getElementById('results').style.display = '';
   // cosine similarity helper
   function cosine(a, b) {
     let dot=0, na=0, nb=0;
