@@ -62,9 +62,9 @@
   <!-- Fuse.js -->
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
 
-  <!-- Inline app script -->
+  <!-- Inline app script with Promise.race timeout -->
   <script>
-  document.addEventListener('DOMContentLoaded', async () => {
+  (async function() {
     console.log('INIT START');
     const serverURL     = 'https://zotero-proxy-1.onrender.com/zotero';
     const userID        = '6928802';
@@ -73,7 +73,6 @@
 
     let allItems = [], fuse;
 
-    // Fetch & filter Zotero items
     async function fetchLibrary() {
       let items = [], start = 0, pageSize = 100, more = true;
       while (more) {
@@ -94,7 +93,6 @@
       );
     }
 
-    // Render helper
     function renderResults(items) {
       console.log('RENDER', items.length);
       const c = document.getElementById('results');
@@ -125,7 +123,6 @@
       });
     }
 
-    // Apply filters + fuzzy search
     function applyFilters() {
       console.log('FILTER');
       const type  = document.getElementById('typeFilter').value;
@@ -139,7 +136,7 @@
       renderResults(pool);
     }
 
-    try {
+    async function initApp() {
       allItems = await fetchLibrary();
       console.log('LOADED ITEMS', allItems.length);
 
@@ -161,16 +158,22 @@
       document.getElementById('typeFilter')
               .addEventListener('change', applyFilters);
 
-    } catch (err) {
-      console.error('ERROR', err);
-      document.getElementById('results').innerHTML =
-        '<div class="col"><p class="text-danger">Failed to load library.</p></div>';
-    } finally {
       console.log('INIT DONE');
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('app').style.display     = 'block';
     }
-  });
+
+    // Race between initApp() and a 5s timeout
+    await Promise.race([
+      initApp(),
+      new Promise(resolve => setTimeout(() => {
+        console.warn('⚠️ Timeout reached, proceeding anyway');
+        resolve();
+      }, 5000))
+    ]);
+
+    // Always hide spinner & show app
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display     = 'block';
+  })();
   </script>
 </body>
 </html>
