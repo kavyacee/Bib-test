@@ -1,9 +1,9 @@
 // 🚨 Replace YOUR_USER_ID and YOUR_API_KEY with your own info
 const userID = '6928802';     // Example: 1234567
-const apiKey = 'r7REcrUUJVF5BkmNfwDkxwqQ';     // Example: AbCdEfGh123456
+const collectionKey = 'DVF2ZBSK';     // Example: AbCdEfGh123456
 
 async function fetchBibliography() {
-  const response = await fetch(`https://api.zotero.org/users/${userID}/items?format=json&key=${apiKey}`);
+  const response = await fetch(`https://api.zotero.org/users/${userID}/items?format=json&key=${collectionKey}`);
   const data = await response.json();
   return data;
 }
