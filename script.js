@@ -92,7 +92,7 @@ function renderResults(results) {
   const container = document.getElementById('results');
   if (!container) return console.error('No #results container found');
   container.innerHTML = '';
-  results.slice(0, 10).forEach(r => {
+  results.forEach(r => {
     const { title, authors, year, url, abstract } = r.item;
     const col = document.createElement('div');
     col.className = 'col';
