@@ -1,12 +1,14 @@
 // 🚀 Client‑side search over your live Zotero library
 
-// ─── Zotero proxy configuration ───────────────────────────────────────────────
+// Zotero proxy configuration
 const serverURL     = 'https://zotero-proxy-1.onrender.com/zotero';
 const userID        = '6928802';
 const apiKey        = 'r7REcrUUJVF5BkmNfwDkxwqQ';
 const collectionKey = 'DVF2ZBSK';
 
-// ─── Fetch all items from your Zotero collection ─────────────────────────────
+console.log('🔍 script.js is running');
+
+// ─── Fetch all items from your Zotero collection (filtering out attachments & notes) ───
 async function fetchAllBibliography() {
   let allItems = [];
   let start    = 0;
@@ -20,13 +22,24 @@ async function fetchAllBibliography() {
                 `&collectionKey=${collectionKey}` +
                 `&limit=${pageSize}` +
                 `&start=${start}`;
+    console.log('▶️ Fetching URL:', url);
+
     const res = await fetch(url);
+    console.log('⏳ Response status:', res.status);
     if (!res.ok) {
       console.error('Zotero proxy error:', res.status);
       break;
     }
+
     const data = await res.json();
-    allItems = allItems.concat(data);
+    // ── FILTER OUT attachments & notes ───────────────────────────────
+    const filtered = data.filter(item =>
+      item.data.itemType !== 'attachment' &&
+      item.data.itemType !== 'note'
+    );
+    console.log('✅ Fetched & filtered items count:', filtered.length);
+
+    allItems = allItems.concat(filtered);
     if (data.length < pageSize) moreData = false;
     else start += pageSize;
   }
@@ -38,7 +51,7 @@ async function fetchAllBibliography() {
 let papers = [];
 let fuse;
 
-// ─── Load, map, render & index Zotero items ──────────────────────────────────
+// ─── Load, map, render & index Zotero items ───────────────────────────────────
 async function loadLibrary() {
   try {
     const items = await fetchAllBibliography();
@@ -46,19 +59,19 @@ async function loadLibrary() {
       id:       item.data.key,
       title:    item.data.title        || '',
       authors:  item.data.creators
-                  ? item.data.creators.map(c => c.lastName)
-                  : [],
+                   ? item.data.creators.map(c => c.lastName)
+                   : [],
       year:     item.data.date
-                  ? item.data.date.split('-')[0]
-                  : '',
+                   ? item.data.date.split('-')[0]
+                   : '',
       abstract: item.data.abstractNote || '',
       url:      item.data.url          || '#'
     }));
 
-    // 1) Render all papers on landing
+    console.log('▶️ renderResults called with', papers.length, 'items');
+    // Show all papers on landing
     renderResults(papers.map(p => ({ item: p })));
 
-    // 2) Initialize Fuse.js search
     initSearch();
   } catch (err) {
     console.error('Failed to load Zotero library:', err);
