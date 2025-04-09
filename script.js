@@ -1,106 +1,69 @@
-(async function(){
-  // Zotero proxy config
-  const serverURL     = 'https://zotero-proxy-1.onrender.com/zotero';
-  const userID        = '6928802';
-  const apiKey        = 'r7REcrUUJVF5BkmNfwDkxwqQ';
-  const collectionKey = 'DVF2ZBSK';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ask This Annotated Bibliography</title>
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+    crossorigin="anonymous"
+  />
+  <style>
+    body { max-width: 960px; margin: auto; }
+    .card { transition: transform .1s; }
+    .card:hover { transform: scale(1.02); }
+  </style>
+</head>
+<body class="py-4">
 
-  // cosine similarity helper
-  function cosine(a, b) {
-    let dot=0, na=0, nb=0;
-    for(let i=0;i<a.length;i++){
-      dot+=a[i]*b[i]; na+=a[i]*a[i]; nb+=b[i]*b[i];
-    }
-    return dot/(Math.sqrt(na)*Math.sqrt(nb));
-  }
+  <header class="text-center mb-4">
+    <h1 class="display-5">📚 Ask This Annotated Bibliography</h1>
+    <p class="text-muted">Filter by type, type your question, then Enter or Search.</p>
+  </header>
 
-  // fetch & filter Zotero items
-  async function fetchAll() {
-    let all=[], start=0, limit=100, more=true;
-    while(more){
-      const url = `${serverURL}?userID=${userID}&apiKey=${apiKey}` +
-                  `&collectionKey=${collectionKey}&limit=${limit}&start=${start}`;
-      const res = await fetch(url);
-      if(!res.ok) break;
-      const data = await res.json();
-      all = all.concat(data);
-      if(data.length<limit) more=false;
-      else start+=limit;
-    }
-    // remove attachments & notes
-    return all.filter(i=>
-      i.data.itemType!=='attachment' && i.data.itemType!=='note'
-    );
-  }
+  <!-- LOADING SPINNER -->
+  <div id="loading" class="d-flex justify-content-center align-items-center my-5">
+    <div class="spinner-border" role="status">
+      <span class="visually-hidden">Loading…</span>
+    </div>
+    <span class="ms-2">Loading model and indexing library…</span>
+  </div>
 
-  // load USE model & Zotero library
-  const model = await use.load();    // now `use` is defined
-  const raw   = await fetchAll();
-  const papers = raw.map((i, idx)=>({
-    index: idx,
-    type: i.data.itemType,
-    title: i.data.title||'',
-    abstract: i.data.abstractNote||'',
-    authors: i.data.creators?.map(c=>c.lastName).join(',')||'',
-    year: i.data.date?.split('-')[0]||'',
-    url: i.data.url||'#'
-  }));
+  <!-- APP UI (hidden until ready) -->
+  <div id="app" class="d-none">
+    <div class="row mb-4 g-2">
+      <div class="col-md-4">
+        <label for="typeFilter" class="form-label">Filter by type</label>
+        <select id="typeFilter" class="form-select">
+          <option value="">All types</option>
+          <option value="journalArticle">Journal Article</option>
+          <option value="newspaperArticle">News Article</option>
+          <option value="report">Report</option>
+          <option value="webpage">Webpage</option>
+        </select>
+      </div>
+      <div class="col-md-8 input-group">
+        <label class="visually-hidden" for="searchBar">Your question</label>
+        <input
+          type="search"
+          id="searchBar"
+          class="form-control"
+          placeholder="e.g. Do queer people like bars?"
+          aria-label="Your question"
+        />
+        <button id="searchBtn" class="btn btn-primary">Search</button>
+      </div>
+    </div>
 
-  // embed all papers
-  const texts = papers.map(p=>`${p.title}. ${p.abstract}`);
-  const embeddings = await model.embed(texts);
-  const embeddingArray = await embeddings.array();
+    <div id="results" class="row row-cols-1 row-cols-md-2 g-4" aria-live="polite"></div>
+  </div>
 
-  // render helper
-  function render(list){
-    const c=document.getElementById('results');
-    c.innerHTML='';
-    list.forEach(p=>{
-      const col=document.createElement('div');
-      col.className='col';
-      col.innerHTML=`
-        <article class="card h-100">
-          <div class="card-body d-flex flex-column">
-            <h5 class="card-title">
-              <a href="${p.url}" target="_blank" rel="noopener">${p.title}</a>
-            </h5>
-            <h6 class="card-subtitle mb-2 text-muted">
-              ${p.authors}${p.year?' ('+p.year+')':''}
-            </h6>
-            <p class="card-text flex-grow-1">${p.abstract}</p>
-          </div>
-        </article>`;
-      c.appendChild(col);
-    });
-  }
-
-  // search logic
-  async function doSearch(){
-    const q = document.getElementById('searchBar').value.trim();
-    const type = document.getElementById('typeFilter').value;
-    // 1) filter by type
-    let pool = type
-      ? papers.filter(p=>p.type===type)
-      : papers.slice();
-    // 2) if no query, render all in pool
-    if(!q) return render(pool);
-    // 3) embed query
-    const qv = (await model.embed([q])).arraySync()[0];
-    // 4) compute scores on pool
-    const scored = pool.map(p=>({
-      p, score: cosine(embeddingArray[p.index],qv)
-    }));
-    // 5) sort & take top 20
-    scored.sort((a,b)=>b.score-a.score);
-    render(scored.slice(0,20).map(x=>x.p));
-  }
-
-  // bind events
-  document.getElementById('searchBar')
-    .addEventListener('keypress', e=>{ if(e.key==='Enter') doSearch(); });
-  document.getElementById('searchBtn')
-    .addEventListener('click', doSearch);
-
-  // initial render
-  render(papers);
-})();
+  <!-- TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0/dist/tf.min.js"></script>
+  <!-- Universal Sentence Encoder -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/universal-sentence-encoder@1.3.3/dist/universal-sentence-encoder.js"></script>
+  <!-- Your application code -->
+  <script src="script.js"></script>
+</body>
+</html>
