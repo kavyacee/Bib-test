@@ -1,69 +1,115 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Ask This Annotated Bibliography</title>
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-    crossorigin="anonymous"
-  />
-  <style>
-    body { max-width: 960px; margin: auto; }
-    .card { transition: transform .1s; }
-    .card:hover { transform: scale(1.02); }
-  </style>
-</head>
-<body class="py-4">
+// 🚀 Fuzzy search over your live Zotero library
 
-  <header class="text-center mb-4">
-    <h1 class="display-5">📚 Ask This Annotated Bibliography</h1>
-    <p class="text-muted">Filter by type, type your question, then Enter or Search.</p>
-  </header>
+// Zotero proxy config
+const serverURL     = 'https://zotero-proxy-1.onrender.com/zotero';
+const userID        = '6928802';
+const apiKey        = 'r7REcrUUJVF5BkmNfwDkxwqQ';
+const collectionKey = 'DVF2ZBSK';
 
-  <!-- LOADING SPINNER -->
-  <div id="loading" class="d-flex justify-content-center align-items-center my-5">
-    <div class="spinner-border" role="status">
-      <span class="visually-hidden">Loading…</span>
-    </div>
-    <span class="ms-2">Loading model and indexing library…</span>
-  </div>
+let allItems = [];
+let fuse;
 
-  <!-- APP UI (hidden until ready) -->
-  <div id="app" class="d-none">
-    <div class="row mb-4 g-2">
-      <div class="col-md-4">
-        <label for="typeFilter" class="form-label">Filter by type</label>
-        <select id="typeFilter" class="form-select">
-          <option value="">All types</option>
-          <option value="journalArticle">Journal Article</option>
-          <option value="newspaperArticle">News Article</option>
-          <option value="report">Report</option>
-          <option value="webpage">Webpage</option>
-        </select>
-      </div>
-      <div class="col-md-8 input-group">
-        <label class="visually-hidden" for="searchBar">Your question</label>
-        <input
-          type="search"
-          id="searchBar"
-          class="form-control"
-          placeholder="e.g. Do queer people like bars?"
-          aria-label="Your question"
-        />
-        <button id="searchBtn" class="btn btn-primary">Search</button>
-      </div>
-    </div>
+// Fetch & filter out attachments/notes
+async function fetchLibrary() {
+  let items = [], start = 0, pageSize = 100, more = true;
+  while (more) {
+    const url = `${serverURL}` +
+                `?userID=${userID}` +
+                `&apiKey=${apiKey}` +
+                `&collectionKey=${collectionKey}` +
+                `&limit=${pageSize}` +
+                `&start=${start}`;
+    const res = await fetch(url);
+    if (!res.ok) break;
+    const data = await res.json();
+    items = items.concat(data);
+    if (data.length < pageSize) more = false;
+    else start += pageSize;
+  }
+  return items.filter(i =>
+    i.data.itemType !== 'attachment' &&
+    i.data.itemType !== 'note'
+  );
+}
 
-    <div id="results" class="row row-cols-1 row-cols-md-2 g-4" aria-live="polite"></div>
-  </div>
+// Render cards into #results
+function renderResults(items) {
+  const container = document.getElementById('results');
+  container.innerHTML = '';
+  if (items.length === 0) {
+    container.innerHTML = '<div class="col"><p>No results.</p></div>';
+    return;
+  }
+  items.forEach(item => {
+    const { title, abstractNote, creators, date, url } = item.data;
+    const authors = creators?.map(c => c.lastName).join(', ') || '';
+    const year    = date?.split('-')[0] || '';
+    const col = document.createElement('div');
+    col.className = 'col';
+    col.innerHTML = `
+      <article class="card h-100">
+        <div class="card-body d-flex flex-column">
+          <h5 class="card-title">
+            <a href="${url || '#'}" target="_blank" rel="noopener">
+              ${title || 'No title'}
+            </a>
+          </h5>
+          <h6 class="card-subtitle mb-2 text-muted">
+            ${authors}${year ? ' (' + year + ')' : ''}
+          </h6>
+          <p class="card-text flex-grow-1">
+            ${abstractNote || ''}
+          </p>
+        </div>
+      </article>`;
+    container.appendChild(col);
+  });
+}
 
-  <!-- TensorFlow.js -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0/dist/tf.min.js"></script>
-  <!-- Universal Sentence Encoder -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/universal-sentence-encoder@1.3.3/dist/universal-sentence-encoder.js"></script>
-  <!-- Your application code -->
-  <script src="script.js"></script>
-</body>
-</html>
+// Apply type filter + fuzzy search
+function applyFilters() {
+  const type  = document.getElementById('typeFilter').value;
+  const query = document.getElementById('searchBar').value.trim();
+
+  // 1) Filter by type
+  let pool = type
+    ? allItems.filter(i => i.data.itemType === type)
+    : allItems.slice();
+
+  // 2) Fuzzy search
+  if (query) {
+    const results = fuse.search(query);
+    pool = results.map(r => r.item);
+  }
+
+  renderResults(pool);
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // 1) Fetch library
+  allItems = await fetchLibrary();
+
+  // 2) Initialize Fuse.js
+  fuse = new Fuse(allItems, {
+    keys: [
+      { name: 'data.title',        weight: 0.5 },
+      { name: 'data.abstractNote', weight: 0.4 },
+      { name: 'data.creators',     weight: 0.1 }
+    ],
+    threshold: 0.3
+  });
+
+  // 3) Initial render (all items)
+  renderResults(allItems);
+
+  // 4) Bind controls
+  document.getElementById('searchBtn').addEventListener('click', applyFilters);
+  document.getElementById('searchBar')
+          .addEventListener('keypress', e => { if (e.key === 'Enter') applyFilters(); });
+  document.getElementById('typeFilter')
+          .addEventListener('change', applyFilters);
+
+  // 5) Hide loading, show app
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').classList.remove('d-none');
+});
