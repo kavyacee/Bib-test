@@ -62,30 +62,31 @@
   <!-- Fuse.js -->
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
 
-  <!-- Inline app script with guaranteed spinner hide -->
+  <!-- Inline script -->
   <script>
-  (async function() {
-    console.log('INIT START');
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM ready');
+
     const serverURL     = 'https://zotero-proxy-1.onrender.com/zotero';
     const userID        = '6928802';
     const apiKey        = 'r7REcrUUJVF5BkmNfwDkxwqQ';
     const collectionKey = 'DVF2ZBSK';
-
     let allItems = [], fuse;
 
+    // Fetch Zotero items and filter out attachments/notes
     async function fetchLibrary() {
-      let items = [], start = 0, pageSize = 100, more = true;
+      let items = [], start = 0, limit = 100, more = true;
       while (more) {
         const url = `${serverURL}?userID=${userID}&apiKey=${apiKey}` +
-                    `&collectionKey=${collectionKey}&limit=${pageSize}&start=${start}`;
+                    `&collectionKey=${collectionKey}&limit=${limit}&start=${start}`;
         console.log('FETCH', url);
         const res = await fetch(url);
         console.log('STATUS', res.status);
         if (!res.ok) break;
         const data = await res.json();
         items = items.concat(data);
-        if (data.length < pageSize) more = false;
-        else start += pageSize;
+        if (data.length < limit) more = false;
+        else start += limit;
       }
       return items.filter(i =>
         i.data.itemType !== 'attachment' &&
@@ -93,6 +94,7 @@
       );
     }
 
+    // Render helper
     function renderResults(items) {
       console.log('RENDER', items.length);
       const c = document.getElementById('results');
@@ -123,6 +125,7 @@
       });
     }
 
+    // Apply type filter + fuzzy search
     function applyFilters() {
       console.log('FILTER');
       const type  = document.getElementById('typeFilter').value;
@@ -136,46 +139,49 @@
       renderResults(pool);
     }
 
-    async function initApp() {
-      allItems = await fetchLibrary();
-      console.log('LOADED ITEMS', allItems.length);
+    // Main startup logic
+    (async function init() {
+      try {
+        allItems = await fetchLibrary();
+        console.log('LOADED ITEMS', allItems.length);
 
-      fuse = new Fuse(allItems, {
-        keys: [
-          { name: 'data.title',        weight: 0.5 },
-          { name: 'data.abstractNote', weight: 0.4 },
-          { name: 'data.creators',     weight: 0.1 }
-        ],
-        threshold: 0.3
-      });
+        fuse = new Fuse(allItems, {
+          keys: [
+            { name: 'data.title',        weight: 0.5 },
+            { name: 'data.abstractNote', weight: 0.4 },
+            { name: 'data.creators',     weight: 0.1 }
+          ],
+          threshold: 0.3
+        });
 
-      renderResults(allItems);
+        renderResults(allItems);
 
-      document.getElementById('searchBtn')
-              .addEventListener('click', applyFilters);
-      document.getElementById('searchBar')
-              .addEventListener('keypress', e => { if (e.key==='Enter') applyFilters(); });
-      document.getElementById('typeFilter')
-              .addEventListener('change', applyFilters);
+        document.getElementById('searchBtn')
+                .addEventListener('click', applyFilters);
+        document.getElementById('searchBar')
+                .addEventListener('keypress', e => { if (e.key==='Enter') applyFilters(); });
+        document.getElementById('typeFilter')
+                .addEventListener('change', applyFilters);
 
-      console.log('INIT DONE');
-    }
+      } catch (err) {
+        console.error('ERROR', err);
+        document.getElementById('results').innerHTML =
+          '<div class="col"><p class="text-danger">Failed to load library.</p></div>';
+      } finally {
+        console.log('SHOW UI');
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('app').style.display     = 'block';
+      }
+    })();
 
-    // Run initApp() but never wait more than 5s
-    try {
-      await Promise.race([
-        initApp(),
-        new Promise(res => setTimeout(res, 5000))
-      ]);
-    } catch (e) {
-      console.error('INIT ERROR', e);
-    } finally {
-      // Always hide spinner and show UI
-      console.log('SHOW UI');
+    // Absolute fallback after 10s
+    setTimeout(() => {
+      console.warn('FALLBACK SHOW UI');
       document.getElementById('loading').style.display = 'none';
       document.getElementById('app').style.display     = 'block';
-    }
-  })();
+    }, 10000);
+
+  });
   </script>
 </body>
 </html>
