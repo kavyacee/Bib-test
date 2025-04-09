@@ -16,8 +16,12 @@ async function fetchAllBibliography() {
   let allItems = [], start = 0, pageSize = 100, moreData = true;
 
   while (moreData) {
-    const url = `${serverURL}?userID=${userID}&apiKey=${apiKey}` +
-                `&collectionKey=${collectionKey}&limit=${pageSize}&start=${start}`;
+    const url = `${serverURL}` +
+                `?userID=${userID}` +
+                `&apiKey=${apiKey}` +
+                `&collectionKey=${collectionKey}` +
+                `&limit=${pageSize}` +
+                `&start=${start}`;
     console.log('▶️ Fetching URL:', url);
 
     const res = await fetch(url);
@@ -84,23 +88,25 @@ function initSearch() {
 
 // ─── Wire up the search input ─────────────────────────────────────────────────
 function bindSearchBox() {
-  const input = document.getElementById('searchBar');
-  input.addEventListener('input', applyFilters);
+  document.getElementById('searchBar')
+    .addEventListener('input', applyFilters);
 }
 
 // ─── Wire up the type dropdown ────────────────────────────────────────────────
 function bindTypeFilter() {
-  const select = document.getElementById('typeFilter');
-  select.addEventListener('change', applyFilters);
+  document.getElementById('typeFilter')
+    .addEventListener('change', applyFilters);
 }
 
 // ─── Combine search + type filter, then render ────────────────────────────────
 function applyFilters() {
-  const q = document.getElementById('searchBar').value.trim();
+  const q    = document.getElementById('searchBar').value.trim();
   const type = document.getElementById('typeFilter').value;
 
   // 1) search
-  let results = q ? fuse.search(q).map(r => r.item) : papers.slice();
+  let results = q
+    ? fuse.search(q).map(r => r.item)
+    : papers.slice();
 
   // 2) filter by type if selected
   if (type) {
