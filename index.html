@@ -57,7 +57,114 @@
 
   <!-- Fuse.js -->
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
-  <!-- Your application code -->
-  <script src="script.js" defer></script>
+
+  <!-- Inline app script -->
+  <script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    console.log('DOM ready');
+    const serverURL     = 'https://zotero-proxy-1.onrender.com/zotero';
+    const userID        = '6928802';
+    const apiKey        = 'r7REcrUUJVF5BkmNfwDkxwqQ';
+    const collectionKey = 'DVF2ZBSK';
+    let allItems = [], fuse;
+
+    async function fetchLibrary() {
+      let items = [], start = 0, pageSize = 100, more = true;
+      while (more) {
+        const url = `${serverURL}?userID=${userID}&apiKey=${apiKey}` +
+                    `&collectionKey=${collectionKey}&limit=${pageSize}&start=${start}`;
+        console.log('FETCH', url);
+        let res;
+        try {
+          res = await fetch(url);
+        } catch (e) {
+          console.error('Network error fetching Zotero:', e);
+          throw e;
+        }
+        console.log('STATUS', res.status);
+        if (!res.ok) {
+          console.error('Server returned', res.status);
+          break;
+        }
+        const data = await res.json();
+        items = items.concat(data);
+        if (data.length < pageSize) more = false;
+        else start += pageSize;
+      }
+      return items.filter(i =>
+        i.data.itemType !== 'attachment' &&
+        i.data.itemType !== 'note'
+      );
+    }
+
+    function renderResults(items) {
+      const c = document.getElementById('results');
+      c.innerHTML = '';
+      if (!items.length) {
+        c.innerHTML = '<div class="col"><p>No results.</p></div>';
+        return;
+      }
+      items.forEach(item => {
+        const { title, abstractNote, creators, date, url } = item.data;
+        const authors = creators?.map(c => c.lastName).join(', ') || '';
+        const year    = date?.split('-')[0] || '';
+        const col = document.createElement('div');
+        col.className = 'col';
+        col.innerHTML = `
+          <article class="card h-100">
+            <div class="card-body d-flex flex-column">
+              <h5 class="card-title">
+                <a href="${url || '#'}" target="_blank" rel="noopener">${title || 'No title'}</a>
+              </h5>
+              <h6 class="card-subtitle mb-2 text-muted">
+                ${authors}${year ? ' (' + year + ')' : ''}
+              </h6>
+              <p class="card-text flex-grow-1">${abstractNote || ''}</p>
+            </div>
+          </article>`;
+        c.appendChild(col);
+      });
+    }
+
+    function applyFilters() {
+      const type  = document.getElementById('typeFilter').value;
+      const query = document.getElementById('searchBar').value.trim();
+      let pool = type
+        ? allItems.filter(i => i.data.itemType === type)
+        : allItems.slice();
+      if (query) {
+        pool = fuse.search(query).map(r => r.item);
+      }
+      renderResults(pool);
+    }
+
+    try {
+      allItems = await fetchLibrary();
+      console.log('LOADED ITEMS', allItems.length);
+
+      fuse = new Fuse(allItems, {
+        keys: [
+          { name: 'data.title',        weight: 0.5 },
+          { name: 'data.abstractNote', weight: 0.4 },
+          { name: 'data.creators',     weight: 0.1 }
+        ],
+        threshold: 0.3
+      });
+
+      renderResults(allItems);
+
+      document.getElementById('searchBtn').addEventListener('click', applyFilters);
+      document.getElementById('searchBar')
+              .addEventListener('keypress', e => { if (e.key==='Enter') applyFilters(); });
+      document.getElementById('typeFilter')
+              .addEventListener('change', applyFilters);
+
+    } catch (err) {
+      console.error('Failed to load library:', err);
+      document.getElementById('results').innerHTML =
+        '<div class="col"><p class="text-danger">Failed to load library. See console.</p></div>';
+    }
+  });
+  </script>
 </body>
 </html>
