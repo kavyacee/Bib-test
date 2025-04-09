@@ -26,9 +26,15 @@
 
   <div id="results" class="row row-cols-1 row-cols-md-2 g-4"></div>
 
-  <!-- 1) Fuse.js for fuzzy search -->
-  <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
-  <!-- 2) Your app -->
+   <!-- Fuse.js (must come first!) -->
+  <script 
+    src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"
+    integrity="sha384‑+J2ZW7mO5NnKm+9mWmDL7eLJ4JmBkP3p4j3K3e9uWjQz4N4tCx+vXpZBxDV9HtEi"
+    crossorigin="anonymous"
+  ></script>
+
+  <!-- Your app -->
   <script src="script.js" defer></script>
+  
 </body>
 </html>
