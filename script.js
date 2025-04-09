@@ -1,9 +1,12 @@
-// 🚨 Replace these with your own Zotero information
+// 🚀 Client-side search over live Zotero library
+
+// Zotero proxy configuration
 const serverURL = 'https://zotero-proxy-1.onrender.com/zotero';
-const userID = '6928802';    // e.g., 1234567
-const apiKey = 'r7REcrUUJVF5BkmNfwDkxwqQ';    // e.g., AbCdEfGh123456
+const userID = '6928802';
+const apiKey = 'r7REcrUUJVF5BkmNfwDkxwqQ';
 const collectionKey = 'DVF2ZBSK';
 
+// Fetch all items from Zotero collection
 async function fetchAllBibliography() {
   let allItems = [];
   let start = 0;
@@ -11,9 +14,10 @@ async function fetchAllBibliography() {
   let moreData = true;
 
   while (moreData) {
-    const response = await fetch(`${serverURL}?userID=${userID}&apiKey=${apiKey}&collectionKey=${collectionKey}&limit=${pageSize}&start=${start}`);
+    const response = await fetch(
+      `${serverURL}?userID=${userID}&apiKey=${apiKey}&collectionKey=${collectionKey}&limit=${pageSize}&start=${start}`
+    );
     const data = await response.json();
-    console.log('Fetched data:', data);  // Add this line
     allItems = allItems.concat(data);
 
     if (data.length < pageSize) {
@@ -22,7 +26,6 @@ async function fetchAllBibliography() {
       start += pageSize;
     }
   }
-
   return allItems;
 }
 
@@ -45,43 +48,55 @@ async function loadLibrary() {
   } catch (err) {
     console.error('Failed to load Zotero library:', err);
   }
+}
 
-function renderResults(items) {
-  const resultsDiv = document.getElementById('results');
-  resultsDiv.innerHTML = ''; // Clear previous content
+// Initialize Fuse.js with title, abstract, and authors
+function initSearch() {
+  const options = {
+    keys: [
+      { name: 'title',    weight: 0.4 },
+      { name: 'abstract', weight: 0.5 },
+      { name: 'authors',  weight: 0.1 }
+    ],
+    threshold:    0.3,
+    includeScore: true
+  };
+  fuse = new Fuse(papers, options);
+  bindSearchBox();
+}
 
-  items.forEach(item => {
-    const div = document.createElement('div');
-    div.className = 'col-md-6';
-    div.innerHTML = `
-      <div class="card h-100 mb-4">
+// Wire up the search input
+function bindSearchBox() {
+  const input = document.getElementById('searchBar');
+  input.addEventListener('input', e => {
+    const q = e.target.value.trim();
+    const results = q ? fuse.search(q) : [];
+    renderResults(results);
+  });
+}
+
+// Render top 10 results as Bootstrap cards
+function renderResults(results) {
+  const container = document.getElementById('results');
+  container.innerHTML = '';
+  results.slice(0, 10).forEach(r => {
+    const { title, authors, year, url } = r.item;
+    const col = document.createElement('div');
+    col.className = 'col-md-6 mb-3';
+    col.innerHTML = `
+      <div class="card h-100">
         <div class="card-body">
-          <h5 class="card-title">${item.data.title || 'No Title'}</h5>
-          <p class="card-text">${item.data.abstractNote || 'No abstract available'}</p>
+          <h5 class="card-title"><a href="${url}" target="_blank">${title}</a></h5>
+          <h6 class="card-subtitle mb-2 text-muted">${authors.join(', ')} (${year})</h6>
+          <p class="card-text">${r.item.abstract}</p>
         </div>
-      </div>
-    `;
-    resultsDiv.appendChild(div);
+      </div>`;
+    container.appendChild(col);
   });
 }
 
-function setupSearch(items) {
-  const searchBar = document.getElementById('searchBar');
-  searchBar.addEventListener('input', (e) => {
-    const query = e.target.value.toLowerCase();
-    const filtered = items.filter(item => {
-      const title = item.data.title?.toLowerCase() || '';
-      const abstract = item.data.abstractNote?.toLowerCase() || '';
-      const realTags = item.data.tags?.map(tag => tag.tag.toLowerCase()).join(' ') || '';
-      const autoTags = generateAutoTags(item).join(' ').toLowerCase();
-      return title.includes(query) || abstract.includes(query) || realTags.includes(query) || autoTags.includes(query);
-    });
-    renderResults(filtered);
-  });
-}
-
-// Main
-fetchAllBibliography().then(items => {
-  renderResults(items);
-  setupSearch(items);
+// On page load, fetch and index; refresh every 5 minutes
+window.addEventListener('DOMContentLoaded', () => {
+  loadLibrary();
+  setInterval(loadLibrary, 5 * 60 * 1000);
 });
