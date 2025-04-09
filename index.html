@@ -23,13 +23,13 @@
     <p class="text-muted">Filter by type, then search titles & abstracts.</p>
   </header>
 
-  <!-- Spinner -->
+  <!-- LOADING SPINNER -->
   <div id="loading" class="d-flex justify-content-center align-items-center my-5">
     <div class="spinner-border" role="status"><span class="visually-hidden">Loading…</span></div>
     <span class="ms-2">Loading your library…</span>
   </div>
 
-  <!-- App UI -->
+  <!-- APP UI -->
   <div id="app">
     <div class="row mb-4 g-2">
       <div class="col-md-4">
@@ -53,15 +53,17 @@
         <button id="searchBtn" class="btn btn-primary">Search</button>
       </div>
     </div>
+
     <div id="results" class="row row-cols-1 row-cols-md-2 g-4" aria-live="polite"></div>
   </div>
 
   <!-- Fuse.js -->
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
 
-  <!-- Inline app script -->
+  <!-- Inline app script with logs & fallback -->
   <script>
   (async function() {
+    console.log('🔍 Script start');
     const serverURL     = 'https://zotero-proxy-1.onrender.com/zotero';
     const userID        = '6928802';
     const apiKey        = 'r7REcrUUJVF5BkmNfwDkxwqQ';
@@ -69,27 +71,41 @@
 
     let allItems = [], fuse;
 
-    // fetch & filter Zotero items
+    // Fallback: unstick UI after 5s
+    setTimeout(() => {
+      console.warn('⚠️ Fallback: showing app after 5s');
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('app').style.display     = 'block';
+    }, 5000);
+
+    // Fetch & filter Zotero items
     async function fetchLibrary() {
+      console.log('▶️ fetchLibrary start');
       let items = [], start = 0, pageSize = 100, more = true;
       while (more) {
-        const url = \`\${serverURL}?userID=\${userID}&apiKey=\${apiKey}\` +
-                    \`&collectionKey=\${collectionKey}&limit=\${pageSize}&start=\${start}\`;
+        const url = `${serverURL}?userID=${userID}&apiKey=${apiKey}` +
+                    `&collectionKey=${collectionKey}&limit=${pageSize}&start=${start}`;
+        console.log('   fetching', url);
         const res = await fetch(url);
+        console.log('   status', res.status);
         if (!res.ok) break;
         const data = await res.json();
         items = items.concat(data);
         if (data.length < pageSize) more = false;
         else start += pageSize;
       }
-      return items.filter(i =>
+      console.log('✅ fetchLibrary got', items.length, 'raw items');
+      const filtered = items.filter(i =>
         i.data.itemType !== 'attachment' &&
         i.data.itemType !== 'note'
       );
+      console.log('✅ filtered to', filtered.length, 'items');
+      return filtered;
     }
 
-    // render function
+    // Render helper
     function renderResults(items) {
+      console.log('▶️ renderResults', items.length);
       const c = document.getElementById('results');
       c.innerHTML = '';
       if (!items.length) {
@@ -102,40 +118,40 @@
         const year    = date?.split('-')[0] || '';
         const col = document.createElement('div');
         col.className = 'col';
-        col.innerHTML = \`
+        col.innerHTML = `
           <article class="card h-100">
             <div class="card-body d-flex flex-column">
               <h5 class="card-title">
-                <a href="\${url||'#'}" target="_blank" rel="noopener">\${title||'No title'}</a>
+                <a href="${url||'#'}" target="_blank" rel="noopener">${title||'No title'}</a>
               </h5>
               <h6 class="card-subtitle mb-2 text-muted">
-                \${authors}\${year? ' ('+year+')': ''}
+                ${authors}${year? ' ('+year+')':''}
               </h6>
-              <p class="card-text flex-grow-1">\${abstractNote||''}</p>
+              <p class="card-text flex-grow-1">${abstractNote||''}</p>
             </div>
-          </article>\`;
+          </article>`;
         c.appendChild(col);
       });
     }
 
-    // apply filters + fuzzy search
+    // Apply type filter + fuzzy search
     function applyFilters() {
+      console.log('▶️ applyFilters');
       const type  = document.getElementById('typeFilter').value;
       const query = document.getElementById('searchBar').value.trim();
       let pool = type
         ? allItems.filter(i => i.data.itemType === type)
         : allItems.slice();
       if (query) {
+        console.log('   fuzzy searching for', query);
         pool = fuse.search(query).map(r => r.item);
       }
       renderResults(pool);
     }
 
     try {
-      // 1) load data
       allItems = await fetchLibrary();
-
-      // 2) init Fuse.js
+      // Initialize Fuse
       fuse = new Fuse(allItems, {
         keys: [
           { name: 'data.title',        weight: 0.5 },
@@ -144,23 +160,20 @@
         ],
         threshold: 0.3
       });
-
-      // 3) initial render
       renderResults(allItems);
 
-      // 4) bind events
-      document.getElementById('searchBtn')
-              .addEventListener('click', applyFilters);
+      // Bind controls
+      document.getElementById('searchBtn').addEventListener('click', applyFilters);
       document.getElementById('searchBar')
               .addEventListener('keypress', e => { if (e.key==='Enter') applyFilters(); });
       document.getElementById('typeFilter')
               .addEventListener('change', applyFilters);
     } catch (err) {
-      console.error('Error loading library:', err);
+      console.error('❌ Error:', err);
       document.getElementById('results').innerHTML =
         '<div class="col"><p class="text-danger">Failed to load library.</p></div>';
     } finally {
-      // hide spinner, show app
+      console.log('▶️ setup done, showing app');
       document.getElementById('loading').style.display = 'none';
       document.getElementById('app').style.display     = 'block';
     }
