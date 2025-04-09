@@ -1,11 +1,28 @@
-// 🚨 Replace YOUR_USER_ID and YOUR_API_KEY with your own info
-const userID = '6928802';     // Example: 1234567
-const collectionKey = 'DVF2ZBSK';     // Example: AbCdEfGh123456
+// 🚨 Replace these with your own info
+const userID = '6928802';    // e.g., 1234567
+const apiKey = 'r7REcrUUJVF5BkmNfwDkxwqQ';    // e.g., AbCdEfGh123456
+const collectionKey = 'DVF2ZBSK';  // e.g., ABCD1234
 
-async function fetchBibliography() {
-  const response = await fetch(`https://api.zotero.org/users/${userID}/items?format=json&key=${collectionKey}&limit=100`);
-  const data = await response.json();
-  return data;
+async function fetchAllBibliography() {
+  let allItems = [];
+  let start = 0;
+  const pageSize = 100;
+  let moreData = true;
+
+  while (moreData) {
+    const response = await fetch(`https://api.zotero.org/users/${userID}/collections/${collectionKey}/items?format=json&key=${apiKey}&limit=${pageSize}&start=${start}`);
+    const data = await response.json();
+
+    allItems = allItems.concat(data);
+
+    if (data.length < pageSize) {
+      moreData = false; // Last page, stop fetching
+    } else {
+      start += pageSize; // Get next page
+    }
+  }
+
+  return allItems;
 }
 
 function renderResults(items) {
@@ -29,38 +46,4 @@ function renderResults(items) {
 }
 
 function setupSearch(items) {
-  const searchBar = document.getElementById('searchBar');
-  searchBar.addEventListener('input', (e) => {
-    const query = e.target.value.toLowerCase();
-    const filtered = items.filter(item => {
-      const title = item.data.title?.toLowerCase() || '';
-      const abstract = item.data.abstractNote?.toLowerCase() || '';
-      return title.includes(query) || abstract.includes(query);
-    });
-    renderResults(filtered);
-  });
-}
-
-// Main
-async function fetchBibliography() {
-  let allItems = [];
-  let start = 0;
-  const pageSize = 100;
-  let moreData = true;
-
-  while (moreData) {
-    const response = await fetch(`https://api.zotero.org/users/${userID}/collections/${collectionKey}/items?format=json&key=${apiKey}&limit=${pageSize}&start=${start}`);
-    const data = await response.json();
-
-    allItems = allItems.concat(data);
-
-    if (data.length < pageSize) {
-      moreData = false; // No more items to fetch
-    } else {
-      start += pageSize; // Move to next page
-    }
-  }
-
-  return allItems;
-}
-
+  const searchBar = document.get
