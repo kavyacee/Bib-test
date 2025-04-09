@@ -62,7 +62,7 @@
   <!-- Fuse.js -->
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
 
-  <!-- Inline app script with Promise.race timeout -->
+  <!-- Inline app script with guaranteed spinner hide -->
   <script>
   (async function() {
     console.log('INIT START');
@@ -161,18 +161,20 @@
       console.log('INIT DONE');
     }
 
-    // Race between initApp() and a 5s timeout
-    await Promise.race([
-      initApp(),
-      new Promise(resolve => setTimeout(() => {
-        console.warn('⚠️ Timeout reached, proceeding anyway');
-        resolve();
-      }, 5000))
-    ]);
-
-    // Always hide spinner & show app
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('app').style.display     = 'block';
+    // Run initApp() but never wait more than 5s
+    try {
+      await Promise.race([
+        initApp(),
+        new Promise(res => setTimeout(res, 5000))
+      ]);
+    } catch (e) {
+      console.error('INIT ERROR', e);
+    } finally {
+      // Always hide spinner and show UI
+      console.log('SHOW UI');
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('app').style.display     = 'block';
+    }
   })();
   </script>
 </body>
