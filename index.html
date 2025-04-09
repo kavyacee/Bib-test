@@ -20,7 +20,7 @@
     <p class="text-muted">Filter by type, type your question, and hit Enter or Search.</p>
   </header>
 
-  <!-- Filters -->
+  <!-- Filters + Search -->
   <div class="row mb-4 g-2">
     <div class="col-md-4">
       <label for="typeFilter" class="form-label">Filter by type</label>
@@ -47,11 +47,11 @@
   <!-- Results -->
   <div id="results" class="row row-cols-1 row-cols-md-2 g-4" aria-live="polite"></div>
 
-  <!-- Load TensorFlow.js -->
+  <!-- 1) TensorFlow.js runtime -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0/dist/tf.min.js"></script>
-  <!-- Load Universal Sentence Encoder -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/universal-sentence-encoder@1.3.3/dist/universal-sentence-encoder.min.js"></script>
-  <!-- Then your app code -->
-  <script src="script.js" defer></script>
+  <!-- 2) Universal Sentence Encoder (provides `use`) -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/universal-sentence-encoder@1.3.3/dist/universal-sentence-encoder.js"></script>
+  <!-- 3) Your application code -->
+  <script src="script.js"></script>
 </body>
 </html>
