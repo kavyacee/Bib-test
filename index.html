@@ -54,16 +54,18 @@
       </div>
     </div>
 
-    <div id="results" class="row row-cols-1 row-cols-md-2 g-4" aria-live="polite"></div>
+    <div id="results" class="row row-cols-1 row-cols-md-2 g-4" aria-live="polite">
+      <!-- results will appear here -->
+    </div>
   </div>
 
   <!-- Fuse.js -->
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
 
-  <!-- Inline app script with logs & fallback -->
+  <!-- Inline app script -->
   <script>
-  (async function() {
-    console.log('🔍 Script start');
+  document.addEventListener('DOMContentLoaded', async () => {
+    console.log('INIT START');
     const serverURL     = 'https://zotero-proxy-1.onrender.com/zotero';
     const userID        = '6928802';
     const apiKey        = 'r7REcrUUJVF5BkmNfwDkxwqQ';
@@ -71,45 +73,30 @@
 
     let allItems = [], fuse;
 
-    // Fallback: unstick UI after 5s
-    setTimeout(() => {
-      console.warn('⚠️ Fallback: showing app after 5s');
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('app').style.display     = 'block';
-    }, 5000);
-
     // Fetch & filter Zotero items
     async function fetchLibrary() {
-      console.log('▶️ fetchLibrary start');
       let items = [], start = 0, pageSize = 100, more = true;
       while (more) {
-    const url = serverURL
-  + '?userID='        + encodeURIComponent(userID)
-  + '&apiKey='        + encodeURIComponent(apiKey)
-  + '&collectionKey=' + encodeURIComponent(collectionKey)
-  + '&limit='         + pageSize
-  + '&start='         + start;
-        console.log('   fetching', url);
+        const url = `${serverURL}?userID=${userID}&apiKey=${apiKey}` +
+                    `&collectionKey=${collectionKey}&limit=${pageSize}&start=${start}`;
+        console.log('FETCH', url);
         const res = await fetch(url);
-        console.log('   status', res.status);
+        console.log('STATUS', res.status);
         if (!res.ok) break;
         const data = await res.json();
         items = items.concat(data);
         if (data.length < pageSize) more = false;
         else start += pageSize;
       }
-      console.log('✅ fetchLibrary got', items.length, 'raw items');
-      const filtered = items.filter(i =>
+      return items.filter(i =>
         i.data.itemType !== 'attachment' &&
         i.data.itemType !== 'note'
       );
-      console.log('✅ filtered to', filtered.length, 'items');
-      return filtered;
     }
 
     // Render helper
     function renderResults(items) {
-      console.log('▶️ renderResults', items.length);
+      console.log('RENDER', items.length);
       const c = document.getElementById('results');
       c.innerHTML = '';
       if (!items.length) {
@@ -129,7 +116,7 @@
                 <a href="${url||'#'}" target="_blank" rel="noopener">${title||'No title'}</a>
               </h5>
               <h6 class="card-subtitle mb-2 text-muted">
-                ${authors}${year? ' ('+year+')':''}
+                ${authors}${year ? ' ('+year+')' : ''}
               </h6>
               <p class="card-text flex-grow-1">${abstractNote||''}</p>
             </div>
@@ -138,16 +125,15 @@
       });
     }
 
-    // Apply type filter + fuzzy search
+    // Apply filters + fuzzy search
     function applyFilters() {
-      console.log('▶️ applyFilters');
+      console.log('FILTER');
       const type  = document.getElementById('typeFilter').value;
       const query = document.getElementById('searchBar').value.trim();
       let pool = type
         ? allItems.filter(i => i.data.itemType === type)
         : allItems.slice();
       if (query) {
-        console.log('   fuzzy searching for', query);
         pool = fuse.search(query).map(r => r.item);
       }
       renderResults(pool);
@@ -155,7 +141,8 @@
 
     try {
       allItems = await fetchLibrary();
-      // Initialize Fuse
+      console.log('LOADED ITEMS', allItems.length);
+
       fuse = new Fuse(allItems, {
         keys: [
           { name: 'data.title',        weight: 0.5 },
@@ -164,24 +151,26 @@
         ],
         threshold: 0.3
       });
+
       renderResults(allItems);
 
-      // Bind controls
-      document.getElementById('searchBtn').addEventListener('click', applyFilters);
+      document.getElementById('searchBtn')
+              .addEventListener('click', applyFilters);
       document.getElementById('searchBar')
               .addEventListener('keypress', e => { if (e.key==='Enter') applyFilters(); });
       document.getElementById('typeFilter')
               .addEventListener('change', applyFilters);
+
     } catch (err) {
-      console.error('❌ Error:', err);
+      console.error('ERROR', err);
       document.getElementById('results').innerHTML =
         '<div class="col"><p class="text-danger">Failed to load library.</p></div>';
     } finally {
-      console.log('▶️ setup done, showing app');
+      console.log('INIT DONE');
       document.getElementById('loading').style.display = 'none';
       document.getElementById('app').style.display     = 'block';
     }
-  })();
+  });
   </script>
 </body>
 </html>
