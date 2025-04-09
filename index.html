@@ -19,7 +19,13 @@
 
   <header class="text-center mb-4">
     <h1 class="display-5">📚 Ask Your Zotero Library</h1>
-    <p class="text-muted">Type any question and press Enter or Search.</p>
+    <!-- Visible instructions below the title -->
+    <p class="lead">
+      Type any natural‑language question in the box below (for example, 
+      <em>“Do queer people like bars?”</em>) and press <strong>Enter</strong> or click 
+      <strong>Search</strong>. The most semantically relevant papers from your Zotero 
+      collection will appear.
+    </p>
   </header>
 
   <!-- Question input + button -->
@@ -28,7 +34,7 @@
       type="search"
       id="searchBar"
       class="form-control"
-      placeholder="e.g. Do queer people like bars?"
+      placeholder="Type your question here…"
       aria-label="Your question"
     />
     <button id="searchBtn" class="btn btn-primary">Search</button>
@@ -54,7 +60,6 @@
     const apiKey        = 'r7REcrUUJVF5BkmNfwDkxwqQ';
     const collectionKey = 'DVF2ZBSK';
 
-    // 1) Fetch & filter Zotero items
     async function fetchLibrary() {
       let all = [], start = 0, limit = 100, more = true;
       while (more) {
@@ -73,7 +78,6 @@
       );
     }
 
-    // 2) Render helper (replaces spinner)
     function renderResults(list) {
       const c = document.getElementById('results');
       c.innerHTML = '';
@@ -103,7 +107,6 @@
       });
     }
 
-    // 3) Semantic search logic
     function cosine(a, b) {
       let dot=0, na=0, nb=0;
       for (let i=0; i<a.length; i++){
@@ -114,36 +117,28 @@
       return dot/(Math.sqrt(na)*Math.sqrt(nb));
     }
 
-    // 4) Kick things off
+    // Main
     try {
       const raw = await fetchLibrary();
-      // Map for embedding
-      const papers = raw.map((i, idx) => ({
-        idx,
-        data: i.data
-      }));
-      // Load USE model
+      const papers = raw.map((i, idx) => ({ idx, data: i.data }));
       const model = await use.load();
-      // Embed all papers
       const texts = papers.map(p => `${p.data.title}. ${p.data.abstractNote}`);
       const emb   = await model.embed(texts);
       const embeddingArray = await emb.array();
 
-      // Initial render: show all papers
-      renderResults(papers.map(p => p));
+      // Initial render
+      renderResults(papers);
 
       // Bind search
-      document.getElementById('searchBtn').onclick = search;
+      document.getElementById('searchBtn').onclick = doSearch;
       document.getElementById('searchBar')
-        .addEventListener('keypress', e => { if (e.key==='Enter') search(); });
+        .addEventListener('keypress', e => { if (e.key==='Enter') doSearch(); });
 
-      async function search() {
+      async function doSearch() {
         const q = document.getElementById('searchBar').value.trim();
-        if (!q) return renderResults(papers.map(p => p));
+        if (!q) return renderResults(papers);
         const qv = (await model.embed([q])).arraySync()[0];
-        // Compute similarities
         const sims = embeddingArray.map(vec => cosine(vec, qv));
-        // Pair, sort, take top 20
         const ranked = papers
           .map((p,i) => ({ paper: p, score: sims[i] }))
           .sort((a,b) => b.score - a.score)
@@ -152,7 +147,7 @@
         renderResults(ranked);
       }
     } catch (err) {
-      console.error('Error:', err);
+      console.error(err);
       document.getElementById('results').innerHTML =
         '<div class="col"><p class="text-danger">Failed to load library.</p></div>';
     }
